@@ -1,8 +1,10 @@
 black
 isort
+ipykernel
 numpy
 matplotlib
-# torch
-# torchvision
-# torchaudio
+pandas
+# torch==2.0.1
+# torchvision==0.15.2
+# torchaudio==2.0.2
 tqdm
