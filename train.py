@@ -10,15 +10,17 @@ if __name__ == "__main__":
     model = SmallVGG16Like().to(device)
 
     train_loader, val_loader = get_train_val_loaders(
-        batch_size=128, num_workers=0, pin_memory=False
+        batch_size=128, num_workers=0, pin_memory=True
     )
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
     loss_function = torch.nn.BCEWithLogitsLoss()
 
-    for epoch in range(10):
-        train_loop(model, train_loader, optimizer, loss_function, device)
+    for epoch in range(30):
+        train_loss = train_loop(model, train_loader, optimizer, loss_function, device)
         val_loss, val_acc = inference_aggregator_loop(
             model, val_loader, device, loss_function
         )
-        print(f"Epoch {epoch}, val_loss: {val_loss}, val_acc: {val_acc}")
+        print(
+            f"Epoch {epoch}, train_loss: {train_loss}, val_loss: {val_loss}, val_acc: {val_acc}"
+        )

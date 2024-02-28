@@ -11,8 +11,10 @@ def train_loop(
     optimizer: torch.optim.Optimizer,
     loss_function: torch.nn.Module,
     device: torch.device,
-):
+) -> float:
     model.train()
+
+    train_loss = 0
     for images, tabular, labels, ids in tqdm(dataloader):
         images, tabular, labels = (
             images.to(device),
@@ -23,8 +25,13 @@ def train_loop(
         optimizer.zero_grad()
         predictions = model(images, tabular)
         loss = loss_function(predictions, labels)
+
+        train_loss += loss.item()
+
         loss.backward()
         optimizer.step()
+
+    return train_loss / len(dataloader)
 
 
 def inference_aggregator_loop(
@@ -41,7 +48,7 @@ def inference_aggregator_loop(
     pred_acc = []
 
     with torch.no_grad():
-        for images, tabular, labels, ids in dataloader:
+        for images, tabular, labels, ids in tqdm(dataloader):
             images, tabular, labels = (
                 images.to(device),
                 tabular.to(device),
@@ -63,10 +70,10 @@ def inference_aggregator_loop(
     unique_ids = np.unique(ids_acc)
     patient_labels = np.zeros(len(unique_ids))
     aggregated_predictions = np.zeros(len(unique_ids))
-    for unique_id in unique_ids:
+    for patient_index, unique_id in enumerate(unique_ids):
         mask = ids_acc == unique_id
-        patient_labels[unique_id] = int(labels_acc[mask].mean() > 0.5)
-        aggregated_predictions[unique_id] = pred_acc[mask][0]
+        patient_labels[patient_index] = int(labels_acc[mask].mean() > 0.5)
+        aggregated_predictions[patient_index] = int(pred_acc[mask].mean() > 0.5)
 
     return val_loss / len(dataloader), balanced_accuracy_score(
         patient_labels, aggregated_predictions
