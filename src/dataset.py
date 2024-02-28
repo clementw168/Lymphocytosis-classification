@@ -127,7 +127,7 @@ class ImageWiseDataset(Dataset):
     def __init__(self, dataframe: pd.DataFrame):
         self.values = dataframe.drop(columns=["path", "LABEL", "patient_id"]).values
         self.paths = dataframe["path"].values
-        self.labels = dataframe["LABEL"].values
+        self.labels = dataframe["LABEL"].values.astype(np.float32)
         self.patient_ids = dataframe["patient_id"].values
 
         self.image_transform = transforms.Compose(
@@ -149,24 +149,42 @@ class ImageWiseDataset(Dataset):
         return (
             image,
             tabular_data,
-            torch.tensor(self.labels[idx]),
+            torch.tensor(self.labels[idx]).unsqueeze(0),
             torch.tensor(self.patient_ids[idx]),
         )
 
 
-def get_train_val_loaders(batch_size: int, fold_id: int = 0, fold_numbers: int = 5):
+def get_train_val_loaders(
+    batch_size: int,
+    fold_id: int = 0,
+    fold_numbers: int = 5,
+    num_workers: int = 0,
+    pin_memory: bool = False,
+) -> tuple[DataLoader, DataLoader]:
     train_df, val_df = load_train_csv(fold_id, fold_numbers)
 
     train_dataset = ImageWiseDataset(train_df)
     val_dataset = ImageWiseDataset(val_df)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
+    val_loader = DataLoader(
+        val_dataset,
+        batch_size=batch_size,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=pin_memory,
+    )
 
     return train_loader, val_loader
 
 
-def get_test_loader(batch_size: int):
+def get_test_loader(batch_size: int) -> DataLoader:
     test_csv = pd.read_csv(TEST_CSV, index_col=0)
     test_df = process_dataframe(test_csv, DatasetType.TEST)
 
