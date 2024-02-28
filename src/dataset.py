@@ -40,7 +40,7 @@ def get_split(
 
 
 def process_dataframe(
-    dataframe: pd.DataFrame, dataset_type: DatasetType
+    dataframe: pd.DataFrame, dataset_type: DatasetType, add_file_path: bool = True
 ) -> pd.DataFrame:
     dataframe = dataframe.copy()
     age = dataframe["DOB"]
@@ -66,6 +66,19 @@ def process_dataframe(
         np.log(dataframe["LYMPH_COUNT"]) - LYMPH_COUNT_MEAN
     ) / LYMPH_COUNT_STD
 
+    if add_file_path:
+        dataframe = merge_file_path(dataframe, dataset_type)
+        dataframe["patient_id"] = dataframe["patient_id"].apply(lambda x: int(x[1:]))
+
+    else:
+        dataframe["patient_id"] = dataframe.index
+        dataframe["patient_id"] = dataframe["patient_id"].apply(lambda x: int(x[1:]))
+        dataframe = dataframe.reset_index(drop=True)
+
+    return dataframe
+
+
+def merge_file_path(dataframe: pd.DataFrame, dataset_type: DatasetType) -> pd.DataFrame:
     if dataset_type == DatasetType.TRAIN or dataset_type == DatasetType.VAL:
         folder = TRAIN_FOLDER
     else:
@@ -85,22 +98,29 @@ def process_dataframe(
 
     dataframe = dataframe.merge(files_df, right_on="patient_id", left_index=True)
 
-    dataframe["patient_id"] = dataframe["patient_id"].apply(lambda x: int(x[1:]))
-
     return dataframe
 
 
-def load_csv(
-    fold_id: int = 0, fold_numbers: int = 5
+def load_train_csv(
+    fold_id: int = 0, fold_numbers: int = 5, add_file_path: bool = True
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     train_csv = pd.read_csv(TRAIN_CSV, index_col=0)
 
     train_df, val_df = get_split(train_csv, fold_id, fold_numbers)
 
-    train_df = process_dataframe(train_df, DatasetType.TRAIN)
-    val_df = process_dataframe(val_df, DatasetType.VAL)
+    train_df = process_dataframe(
+        train_df, DatasetType.TRAIN, add_file_path=add_file_path
+    )
+    val_df = process_dataframe(val_df, DatasetType.VAL, add_file_path=add_file_path)
 
     return train_df, val_df
+
+
+def load_test_csv(add_file_path: bool = True) -> pd.DataFrame:
+    test_csv = pd.read_csv(TEST_CSV, index_col=0)
+    test_df = process_dataframe(test_csv, DatasetType.TEST, add_file_path)
+
+    return test_df
 
 
 class ImageWiseDataset(Dataset):
@@ -135,7 +155,7 @@ class ImageWiseDataset(Dataset):
 
 
 def get_train_val_loaders(batch_size: int, fold_id: int = 0, fold_numbers: int = 5):
-    train_df, val_df = load_csv(fold_id, fold_numbers)
+    train_df, val_df = load_train_csv(fold_id, fold_numbers)
 
     train_dataset = ImageWiseDataset(train_df)
     val_dataset = ImageWiseDataset(val_df)
