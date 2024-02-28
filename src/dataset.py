@@ -146,13 +146,12 @@ def get_train_val_loaders(batch_size: int, fold_id: int = 0, fold_numbers: int =
     return train_loader, val_loader
 
 
-if __name__ == "__main__":
-    train_loader, val_loader = get_train_val_loaders(32)
-    for i, (image, tabular_data, label, patient_id) in enumerate(train_loader):
-        print(image.shape, tabular_data.shape, label.shape, patient_id.shape)
-        if i > 5:
-            break
-    for i, (image, tabular_data, label, patient_id) in enumerate(val_loader):
-        print(image.shape, tabular_data.shape, label.shape, patient_id.shape)
-        if i > 5:
-            break
+def get_test_loader(batch_size: int):
+    test_csv = pd.read_csv(TEST_CSV, index_col=0)
+    test_df = process_dataframe(test_csv, DatasetType.TEST)
+
+    test_dataset = ImageWiseDataset(test_df)
+
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    return test_loader
