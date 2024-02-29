@@ -7,18 +7,30 @@ from src.dataset import get_train_val_loaders
 from src.models import MiniCnn, MobileNetV2, MobileNetV2Tab, SmallVGG16Like, VGG16Like
 from src.training import inference_aggregator_loop, train_loop
 
+model_dict = {
+    "MiniCnn": MiniCnn,
+    "MobileNetV2": MobileNetV2,
+    "MobileNetV2Tab": MobileNetV2Tab,
+    "SmallVGG16Like": SmallVGG16Like,
+    "VGG16Like": VGG16Like,
+}
+
+
 if __name__ == "__main__":
 
-    run_name = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}"
-    print("Run name:", run_name)
-
-    all_folds = False
-    save = False
+    all_folds = True
+    save = True
+    model_name = "MobileNetV2Tab"
     num_epochs = 20
 
+    run_name = f"run_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}_{model_name}"
+    print("Run name:", run_name)
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    save_directory = os.path.join("saved_models", run_name)
-    os.makedirs(save_directory, exist_ok=True)
+
+    if save:
+        save_directory = os.path.join("saved_models", run_name)
+        os.makedirs(save_directory, exist_ok=True)
 
     if all_folds:
         num_folds = 4
@@ -26,7 +38,7 @@ if __name__ == "__main__":
         num_folds = 1
 
     for fold in range(num_folds):
-        model = MobileNetV2Tab().to(device)
+        model = model_dict[model_name]().to(device)
         train_loader, val_loader = get_train_val_loaders(
             batch_size=64, num_workers=0, pin_memory=True, fold_id=fold, fold_numbers=4
         )

@@ -70,6 +70,7 @@ def inference_aggregator_loop(
     unique_ids = np.unique(ids_acc)
     patient_labels = np.zeros(len(unique_ids))
     aggregated_predictions = np.zeros(len(unique_ids))
+
     for patient_index, unique_id in enumerate(unique_ids):
         mask = ids_acc == unique_id
         patient_labels[patient_index] = int(labels_acc[mask].mean() > 0.5)
