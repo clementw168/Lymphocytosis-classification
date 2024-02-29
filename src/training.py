@@ -73,7 +73,7 @@ def inference_aggregator_loop(
     for patient_index, unique_id in enumerate(unique_ids):
         mask = ids_acc == unique_id
         patient_labels[patient_index] = int(labels_acc[mask].mean() > 0.5)
-        aggregated_predictions[patient_index] = int(pred_acc[mask].mean() > 0.5)
+        aggregated_predictions[patient_index] = int(pred_acc[mask].mean() > 0)
 
     return val_loss / len(dataloader), balanced_accuracy_score(
         patient_labels, aggregated_predictions

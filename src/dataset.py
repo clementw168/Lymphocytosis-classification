@@ -1,13 +1,14 @@
 import datetime
 import os
+import random
 
 import numpy as np
 import pandas as pd
 import PIL.Image as Image
 import torch
+import torchvision.transforms.v2 as transforms
 from sklearn.model_selection import StratifiedKFold
 from torch.utils.data import DataLoader, Dataset
-from torchvision import transforms
 
 from src.constants import (
     AGE_MEAN,
@@ -124,27 +125,51 @@ def load_test_csv(add_file_path: bool = True) -> pd.DataFrame:
 
 
 class ImageWiseDataset(Dataset):
-    def __init__(self, dataframe: pd.DataFrame):
+    def __init__(self, dataframe: pd.DataFrame, augmentations: bool = False):
         self.values = dataframe.drop(columns=["path", "LABEL", "patient_id"]).values
         self.paths = dataframe["path"].values
         self.labels = dataframe["LABEL"].values.astype(np.float32)
+
+        unique_labels, count = np.unique(self.labels, return_counts=True)
+        print("Unique labels:", unique_labels, "Counts:", count)
+
         self.patient_ids = dataframe["patient_id"].values
 
         self.image_transform = transforms.Compose(
             [
-                transforms.ToTensor(),
+                transforms.ToImageTensor(),
+                transforms.ToDtype(torch.float32),
+                transforms.Normalize(mean=IMAGE_MEAN, std=IMAGE_STD),
+            ]
+        )
+
+        self.augmentations = augmentations
+        self.augmentations_transform = transforms.Compose(
+            [
+                transforms.ToImageTensor(),
+                transforms.ToDtype(torch.float32),
+                transforms.RandomRotation((-180, 180), expand=True),
+                transforms.RandomResizedCrop(
+                    224, ratio=(0.8, 1.2), scale=(0.5, 1.0), antialias=True
+                ),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomVerticalFlip(p=0.5),
                 transforms.Normalize(mean=IMAGE_MEAN, std=IMAGE_STD),
             ]
         )
 
     def __len__(self) -> int:
-        return len(self.paths)
+        return len(self.paths) * 2 if self.augmentations else len(self.paths)
 
     def __getitem__(
         self, idx: int
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         tabular_data = torch.tensor(self.values[idx]).float()
-        image = self.image_transform(Image.open(self.paths[idx]).convert("RGB"))  # type: ignore
+        pil_image = Image.open(self.paths[idx]).convert("RGB")  # type: ignore
+        if self.augmentations and idx >= len(self.paths):
+            image = self.augmentations_transform(pil_image)
+        else:
+            image = self.image_transform(pil_image)
 
         return (
             image,
@@ -157,13 +182,15 @@ class ImageWiseDataset(Dataset):
 def get_train_val_loaders(
     batch_size: int,
     fold_id: int = 0,
-    fold_numbers: int = 5,
+    fold_numbers: int = 4,
     num_workers: int = 0,
     pin_memory: bool = False,
 ) -> tuple[DataLoader, DataLoader]:
     train_df, val_df = load_train_csv(fold_id, fold_numbers)
 
-    train_dataset = ImageWiseDataset(train_df)
+    print("Train dataset:")
+    train_dataset = ImageWiseDataset(train_df, augmentations=True)
+    print("Val dataset:")
     val_dataset = ImageWiseDataset(val_df)
 
     train_loader = DataLoader(

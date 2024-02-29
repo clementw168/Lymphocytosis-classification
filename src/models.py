@@ -129,9 +129,65 @@ class SmallVGG16Like(torch.nn.Module):
         return x
 
 
-if __name__ == "__main__":
-    model = SmallVGG16Like()
-    input_tensor = torch.rand(5, 3, 224, 224)
-    output = model(input_tensor, None)
+class MiniCnn(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
 
+        self.conv1 = torch.nn.Conv2d(3, 16, kernel_size=3)
+        self.pool1 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv2 = torch.nn.Conv2d(16, 32, kernel_size=3)
+        self.pool2 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv3 = torch.nn.Conv2d(32, 64, kernel_size=3)
+        self.pool3 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv4 = torch.nn.Conv2d(64, 128, kernel_size=3)
+        self.pool4 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.conv5 = torch.nn.Conv2d(128, 128, kernel_size=3)
+        self.pool5 = torch.nn.MaxPool2d(kernel_size=2, stride=2)
+
+        self.fc1 = torch.nn.Linear(128 * 5 * 5, 256)
+        self.fc2 = torch.nn.Linear(256, 1)
+
+    def forward(self, images: torch.Tensor, tabular: torch.Tensor) -> torch.Tensor:
+        x = images
+        x = torch.nn.functional.relu(self.conv1(x))
+        x = self.pool1(x)
+        x = torch.nn.functional.relu(self.conv2(x))
+        x = self.pool2(x)
+        x = torch.nn.functional.relu(self.conv3(x))
+        x = self.pool3(x)
+        x = torch.nn.functional.relu(self.conv4(x))
+        x = self.pool4(x)
+        x = torch.nn.functional.relu(self.conv5(x))
+        x = self.pool5(x)
+
+        x = x.view(-1, 128 * 5 * 5)
+        x = torch.nn.functional.relu(self.fc1(x))
+        x = self.fc2(x)
+
+        return x
+
+
+class MobileNetv2Module(torch.nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.model = torch.hub.load(
+            "pytorch/vision:v0.9.0", "mobilenet_v2", pretrained=True
+        )
+        self.model.classifier[1] = torch.nn.Linear(1280, 1)
+
+    def forward(self, images: torch.Tensor, tabular: torch.Tensor) -> torch.Tensor:
+        x = images
+        x = self.model(x)
+        return x
+
+
+if __name__ == "__main__":
+    model = MiniCnn()
+    input_tensor = torch.rand(64, 3, 224, 224)
+    output = model(input_tensor, None)
     print(output.shape)
+    print(output)
