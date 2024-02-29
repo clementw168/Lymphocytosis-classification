@@ -61,7 +61,7 @@ def process_dataframe(
     dataframe["AGE"] = (age - AGE_MEAN) / AGE_STD
     dataframe = dataframe.drop(columns=["DOB"])
 
-    dataframe["GENDER"] = dataframe["GENDER"].apply(lambda x: 1 if x == "M" else 0)
+    dataframe["GENDER"] = dataframe["GENDER"].apply(lambda x: 0.5 if x == "M" else -0.5)
 
     dataframe["LYMPH_COUNT"] = (
         np.log(dataframe["LYMPH_COUNT"]) - LYMPH_COUNT_MEAN
@@ -124,6 +124,14 @@ def load_test_csv(add_file_path: bool = True) -> pd.DataFrame:
     return test_df
 
 
+def tabular_masking(tabular_data: np.ndarray) -> np.ndarray:
+    tabular_data = tabular_data.copy()
+    masking = [random.random() > 0.5 for _ in range(len(tabular_data))]
+    tabular_data[masking] = 0
+
+    return tabular_data
+
+
 class ImageWiseDataset(Dataset):
     def __init__(self, dataframe: pd.DataFrame, augmentations: bool = False):
         self.values = dataframe.drop(columns=["path", "LABEL", "patient_id"]).values
@@ -159,21 +167,25 @@ class ImageWiseDataset(Dataset):
         )
 
     def __len__(self) -> int:
-        return len(self.paths) * 2 if self.augmentations else len(self.paths)
+        return len(self.paths)
 
     def __getitem__(
         self, idx: int
     ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        tabular_data = torch.tensor(self.values[idx]).float()
+        tabular_data = self.values[idx]
         pil_image = Image.open(self.paths[idx]).convert("RGB")  # type: ignore
-        if self.augmentations and idx >= len(self.paths):
+
+        if self.augmentations and random.random() > 0.5:
             image = self.augmentations_transform(pil_image)
         else:
             image = self.image_transform(pil_image)
 
+        if self.augmentations and random.random() > 0.5:
+            tabular_data = tabular_masking(tabular_data)
+
         return (
             image,
-            tabular_data,
+            torch.tensor(tabular_data).float(),
             torch.tensor(self.labels[idx]).unsqueeze(0),
             torch.tensor(self.patient_ids[idx]),
         )
