@@ -4,20 +4,10 @@ from datetime import datetime
 import torch
 
 from src.dataset import get_train_val_loaders
-from src.models import MiniCnn, MobileNetV2, MobileNetV2Tab, SmallVGG16Like, VGG16Like
-from src.training import inference_aggregator_loop, train_loop
-
-model_dict = {
-    "MiniCnn": MiniCnn,
-    "MobileNetV2": MobileNetV2,
-    "MobileNetV2Tab": MobileNetV2Tab,
-    "SmallVGG16Like": SmallVGG16Like,
-    "VGG16Like": VGG16Like,
-}
-
+from src.models import MODEL_DICT
+from src.training import get_best_threshold, inference_aggregator_loop, train_loop
 
 if __name__ == "__main__":
-
     all_folds = True
     save = True
     model_name = "MobileNetV2Tab"
@@ -38,7 +28,7 @@ if __name__ == "__main__":
         num_folds = 1
 
     for fold in range(num_folds):
-        model = model_dict[model_name]().to(device)
+        model = MODEL_DICT[model_name]().to(device)
         train_loader, val_loader = get_train_val_loaders(
             batch_size=64, num_workers=0, pin_memory=True, fold_id=fold, fold_numbers=4
         )
@@ -51,9 +41,12 @@ if __name__ == "__main__":
             train_loss = train_loop(
                 model, train_loader, optimizer, loss_function, device
             )
-            val_loss, val_acc = inference_aggregator_loop(
-                model, val_loader, device, loss_function
+            patient_labels, aggregated_predictions, unique_ids, val_loss = (
+                inference_aggregator_loop(model, val_loader, device, loss_function)
             )
+
+            _, _, val_acc = get_best_threshold(patient_labels, aggregated_predictions)
+
             print(
                 f"Fold {fold}, Epoch {epoch}, train_loss: {train_loss}, val_loss: {val_loss}, val_acc: {val_acc}"
             )

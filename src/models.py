@@ -387,6 +387,15 @@ class MobileNetV2Tab(torch.nn.Module):
                 m.bias.data.zero_()
 
 
+MODEL_DICT = {
+    "MiniCnn": MiniCnn,
+    "MobileNetV2": MobileNetV2,
+    "MobileNetV2Tab": MobileNetV2Tab,
+    "SmallVGG16Like": SmallVGG16Like,
+    "VGG16Like": VGG16Like,
+}
+
+
 if __name__ == "__main__":
     import torchinfo
 
