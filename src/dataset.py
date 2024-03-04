@@ -103,16 +103,28 @@ def merge_file_path(dataframe: pd.DataFrame, dataset_type: DatasetType) -> pd.Da
 
 
 def load_train_csv(
-    fold_id: int = 0, fold_numbers: int = 5, add_file_path: bool = True
+    fold_id: int = 0,
+    fold_numbers: int = 5,
+    add_file_path: bool = True,
+    patient_wise: bool = True,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     train_csv = pd.read_csv(TRAIN_CSV, index_col=0)
 
-    train_df, val_df = get_split(train_csv, fold_id, fold_numbers)
+    if patient_wise:
+        train_df, val_df = get_split(train_csv, fold_id, fold_numbers)
 
-    train_df = process_dataframe(
-        train_df, DatasetType.TRAIN, add_file_path=add_file_path
+        train_df = process_dataframe(
+            train_df, DatasetType.TRAIN, add_file_path=add_file_path
+        )
+        val_df = process_dataframe(val_df, DatasetType.VAL, add_file_path=add_file_path)
+
+        return train_df, val_df
+
+    train_csv = process_dataframe(
+        train_csv, DatasetType.TRAIN, add_file_path=add_file_path
     )
-    val_df = process_dataframe(val_df, DatasetType.VAL, add_file_path=add_file_path)
+
+    train_df, val_df = get_split(train_csv, fold_id, fold_numbers)
 
     return train_df, val_df
 
@@ -156,10 +168,10 @@ class ImageWiseDataset(Dataset):
             [
                 transforms.ToImageTensor(),
                 transforms.ToDtype(torch.float32),
-                transforms.RandomRotation((-180, 180), expand=True),
-                transforms.RandomResizedCrop(
-                    224, ratio=(0.8, 1.2), scale=(0.5, 1.0), antialias=True
-                ),
+                # transforms.RandomRotation((-180, 180), expand=True),
+                # transforms.RandomResizedCrop(
+                #     224, ratio=(0.8, 1.2), scale=(0.5, 1.0), antialias=True
+                # ),
                 transforms.RandomHorizontalFlip(p=0.5),
                 transforms.RandomVerticalFlip(p=0.5),
                 transforms.Normalize(mean=IMAGE_MEAN, std=IMAGE_STD),
@@ -197,8 +209,11 @@ def get_train_val_loaders(
     fold_numbers: int = 4,
     num_workers: int = 0,
     pin_memory: bool = False,
+    patient_wise: bool = True,
 ) -> tuple[DataLoader, DataLoader]:
-    train_df, val_df = load_train_csv(fold_id, fold_numbers)
+    train_df, val_df = load_train_csv(
+        fold_id, fold_numbers, add_file_path=True, patient_wise=patient_wise
+    )
 
     print("Train dataset:")
     train_dataset = ImageWiseDataset(train_df, augmentations=True)

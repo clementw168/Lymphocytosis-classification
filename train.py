@@ -10,6 +10,8 @@ from src.training import get_best_threshold, inference_aggregator_loop, train_lo
 if __name__ == "__main__":
     all_folds = True
     save = True
+    patient_wise_split = False
+
     model_name = "MobileNetV2Tab"
     num_epochs = 20
 
@@ -30,7 +32,12 @@ if __name__ == "__main__":
     for fold in range(num_folds):
         model = MODEL_DICT[model_name]().to(device)
         train_loader, val_loader = get_train_val_loaders(
-            batch_size=64, num_workers=0, pin_memory=True, fold_id=fold, fold_numbers=4
+            batch_size=64,
+            num_workers=0,
+            pin_memory=True,
+            fold_id=fold,
+            fold_numbers=4,
+            patient_wise=patient_wise_split,
         )
 
         optimizer = torch.optim.AdamW(model.parameters(), lr=0.001, weight_decay=0.0001)
